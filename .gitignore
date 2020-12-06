@@ -1,0 +1,7 @@
+*.o
+*.d
+*.a
+/standalone_domain/bsp/psu_cortexa53_0/include
+!.gitkeep
+!include/xfpga_config.h
+!include/xparameters.h
