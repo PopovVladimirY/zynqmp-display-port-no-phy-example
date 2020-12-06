@@ -63,6 +63,14 @@
 #include "xdppsu_hw.h"
 #include "xil_types.h"
 #include "xvidc.h"
+
+/****************************** Compilation Options Definitions ***************/
+/**
+ * This define will enable NO PHY mode for Display Port.
+ * Use it to enable DP Live Video to FPGA without a PHY present.
+ */
+#define NO_PHY
+
 /****************************** Type Definitions ******************************/
 /**
  * This typedef contains configuration information for the DisplayPort TX core.

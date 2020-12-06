@@ -448,6 +448,7 @@ static u32 XDpPsu_SetTrainingPattern(XDpPsu *InstancePtr, u32 Pattern)
 	XDpPsu_SetVswingPreemp(InstancePtr, &AuxData[1]);
 	/* Write the voltage swing and pre-emphasis levels for each lane to the
 	 * RX device. */
+#ifndef NO_PHY	
 	if (Pattern == XDPPSU_TRAINING_PATTERN_SET_OFF) {
 		Status = XDpPsu_AuxWrite(InstancePtr, XDPPSU_DPCD_TP_SET, 1,
 								AuxData);
@@ -456,6 +457,7 @@ static u32 XDpPsu_SetTrainingPattern(XDpPsu *InstancePtr, u32 Pattern)
 		Status = XDpPsu_AuxWrite(InstancePtr, XDPPSU_DPCD_TP_SET, 5,
 								AuxData);
 	}
+#endif
 	return Status;
 }
 
@@ -588,6 +590,7 @@ static u32 XDpPsu_CheckChannelEqualization(XDpPsu *InstancePtr, u8 LaneCount)
 *******************************************************************************/
 static u32 XDpPsu_GetLaneStatusAdjReqs(XDpPsu *InstancePtr)
 {
+#ifndef NO_PHY	
 	u32 Status;
 	u8 AuxData[8];
 
@@ -610,7 +613,7 @@ static u32 XDpPsu_GetLaneStatusAdjReqs(XDpPsu *InstancePtr)
 	/* Save contents of XDPPSU_DPCD_STATUS_LANE_X_X,
 	 * XDPPSU_DPCD_LANE_ALIGN_STATUS_UPDATED, XDPPSU_DPCD_SINK_STATUS. */
 	memcpy(InstancePtr->RxConfig.LaneStatusAdjReqs, &AuxData[2], 6);
-
+#endif
 	return XST_SUCCESS;
 }
 
@@ -1266,12 +1269,13 @@ static u32 XDpPsu_SetPhyClkSpeed(XDpPsu *InstancePtr, u32 Speed)
 									RegVal);
 	}
 
+#ifndef NO_PHY	
 	/* Wait until the PHY is ready. */
 	Status = XDpPsu_WaitPhyReady(InstancePtr);
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
-
+#endif
 	return XST_SUCCESS;
 }
 
@@ -1305,7 +1309,7 @@ u32 XDpPsu_InitializeTx(XDpPsu *InstancePtr)
 
 	XDpPsu_WriteReg(Config->BaseAddr, XDPPSU_SOFT_RESET,
 						XDPPSU_SOFT_RESET_EN);
-
+#ifndef NO_PHY	
 	XDpPsu_WriteReg(Config->BaseAddr, XDPPSU_ENABLE, XDPPSU_DP_DISABLE);
 
 	RegVal = (XDpPsu_ReadReg(Config->BaseAddr, XDPPSU_AUX_CLK_DIVIDER) &
@@ -1324,14 +1328,16 @@ u32 XDpPsu_InitializeTx(XDpPsu *InstancePtr)
 	if (Status != XST_SUCCESS) {
 		return Status;
 	}
+#endif
 
 	XDpPsu_WriteReg(Config->BaseAddr, XDPPSU_ENABLE, XDPPSU_DP_ENABLE);
 
+#ifndef NO_PHY	
 	XDpPsu_WriteReg(Config->BaseAddr, XDPPSU_INTR_MASK,
 					~XDPPSU_INTR_HPD_PULSE_DETECTED_MASK &
 					~XDPPSU_INTR_HPD_EVENT_MASK &
 					~XDPPSU_INTR_HPD_IRQ_MASK);
-
+#endif
 	return Status;
 }
 
@@ -1400,11 +1406,30 @@ u32 XDpPsu_GetRxCapabilities(XDpPsu *InstancePtr)
 
 	Dpcd = InstancePtr->RxConfig.DpcdRxCapsField;
 	LinkConfig = &InstancePtr->LinkConfig;
+#ifndef NO_PHY	
 	Status = XDpPsu_AuxRead(InstancePtr,
 				XDPPSU_DPCD_RECEIVER_CAP_FIELD_START, 16, Dpcd);
 	if (Status != XST_SUCCESS) {
 		return Status;
 	}
+#else
+	Dpcd[0] = 0; // revision
+	Dpcd[1] = 0x0A; // max link rate
+	Dpcd[2] = 2; // max lane count
+	Dpcd[3] = 0; // max downspread
+	Dpcd[4] = 0; // downspread present
+	Dpcd[5] = 0; // channel coding support
+	Dpcd[6] = 0; // dwnsp msa
+	Dpcd[7] = 0; // rx port 0
+	Dpcd[8] = 0; //
+	Dpcd[9] = 0; //
+	Dpcd[10] = 0; // rx port 1
+	Dpcd[11] = 0; //
+	Dpcd[12] = 0; // I2C speed
+	Dpcd[13] = 0; //
+	Dpcd[14] = 0; // train AUX rd interval
+	Dpcd[15] = 0; //
+#endif
 
 	RxMaxLinkRate = Dpcd[XDPPSU_DPCD_MAX_LINK_RATE];
 	RxMaxLaneCount = Dpcd[XDPPSU_DPCD_MAX_LANE_COUNT] &
@@ -1417,7 +1442,7 @@ u32 XDpPsu_GetRxCapabilities(XDpPsu *InstancePtr)
 	LinkConfig->SupportEnhancedFramingMode =
 					Dpcd[XDPPSU_DPCD_MAX_LANE_COUNT] &
 					XDPPSU_DPCD_ENHANCED_FRAME_SUPPORT_MASK;
-	LinkConfig->SupportDownspreadControl =
+	LinkConfig->SupportDownspreadControl = 0;
 					Dpcd[XDPPSU_DPCD_MAX_DOWNSPREAD] &
 					XDPPSU_DPCD_MAX_DOWNSPREAD_MASK;
 
@@ -1642,9 +1667,13 @@ u32 XDpPsu_AuxRead(XDpPsu *InstancePtr, u32 DpcdAddress, u32 BytesToRead,
 	Xil_AssertNonvoid(BytesToRead <= 0xFFFFF);
 	Xil_AssertNonvoid(ReadData != NULL);
 
+#ifndef NO_PHY	
 	/* Send AUX read transaction. */
 	return XDpPsu_AuxCommon(InstancePtr, XDPPSU_AUX_CMD_READ, DpcdAddress,
 						BytesToRead, (u8 *)ReadData);
+#else
+	return XST_SUCCESS;						
+#endif						
 }
 
 /******************************************************************************/
@@ -1680,9 +1709,13 @@ u32 XDpPsu_AuxWrite(XDpPsu *InstancePtr, u32 DpcdAddress, u32 BytesToWrite,
 	Xil_AssertNonvoid(BytesToWrite <= 0xFFFFF);
 	Xil_AssertNonvoid(WriteData != NULL);
 
+#ifndef NO_PHY	
 	/* Send AUX write transaction. */
 	return XDpPsu_AuxCommon(InstancePtr, XDPPSU_AUX_CMD_WRITE, DpcdAddress,
 						BytesToWrite, (u8 *)WriteData);
+#else
+	return XST_SUCCESS;
+#endif
 }
 
 /******************************************************************************/
@@ -1867,8 +1900,8 @@ u32 XDpPsu_IicWrite(XDpPsu *InstancePtr, u8 IicAddress, u8 BytesToWrite,
 *******************************************************************************/
 u32 XDpPsu_SetDownspread(XDpPsu *InstancePtr, u8 Enable)
 {
-	u32 Status;
-	u8 RegVal;
+	u32 Status = XST_SUCCESS;
+	u8 RegVal = 0;
 
 	/* Verify arguments. */
 	Xil_AssertNonvoid(InstancePtr != NULL);
@@ -1881,6 +1914,7 @@ u32 XDpPsu_SetDownspread(XDpPsu *InstancePtr, u8 Enable)
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_DOWNSPREAD_CTRL,
 				InstancePtr->LinkConfig.DownspreadControl);
 
+#ifndef NO_PHY
 	/* Preserve the current RX device settings. */
 	Status = XDpPsu_AuxRead(InstancePtr, XDPPSU_DPCD_DOWNSPREAD_CTRL, 0x1,
 								&RegVal);
@@ -1891,7 +1925,9 @@ u32 XDpPsu_SetDownspread(XDpPsu *InstancePtr, u8 Enable)
 		RegVal |= XDPPSU_DPCD_SPREAD_AMP_MASK;
 	}
 	else {
+#endif		
 		RegVal &= ~XDPPSU_DPCD_SPREAD_AMP_MASK;
+#ifndef NO_PHY
 	}
 
 	/* Write downspread enable to the RX device. */
@@ -1900,6 +1936,7 @@ u32 XDpPsu_SetDownspread(XDpPsu *InstancePtr, u8 Enable)
 	if (Status != XST_SUCCESS) {
 		return Status;
 	}
+#endif	
 	return Status;
 }
 
@@ -1923,8 +1960,8 @@ u32 XDpPsu_SetDownspread(XDpPsu *InstancePtr, u8 Enable)
 *******************************************************************************/
 u32 XDpPsu_SetEnhancedFrameMode(XDpPsu *InstancePtr, u8 Enable)
 {
-	u32 Status;
-	u8 RegVal;
+	u32 Status = XST_SUCCESS;
+	u8 RegVal = 0;
 
 	/* Verify arguments. */
 	Xil_AssertNonvoid(InstancePtr != NULL);
@@ -1937,6 +1974,7 @@ u32 XDpPsu_SetEnhancedFrameMode(XDpPsu *InstancePtr, u8 Enable)
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_ENHANCED_FRAME_EN,
 				InstancePtr->LinkConfig.EnhancedFramingMode);
 
+#ifndef NO_PHY
 	/* Preserve the current RX device settings. */
 	Status = XDpPsu_AuxRead(InstancePtr, XDPPSU_DPCD_LANE_COUNT_SET, 0x1,
 								&RegVal);
@@ -1956,6 +1994,7 @@ u32 XDpPsu_SetEnhancedFrameMode(XDpPsu *InstancePtr, u8 Enable)
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
+#endif
 
 	return XST_SUCCESS;
 }
@@ -1994,6 +2033,7 @@ u32 XDpPsu_SetLaneCount(XDpPsu *InstancePtr, u8 LaneCount)
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_LANE_COUNT_SET,
 					InstancePtr->LinkConfig.LaneCount);
 
+#ifndef NO_PHY
 	/* Preserve the current RX device settings. */
 	Status = XDpPsu_AuxRead(InstancePtr, XDPPSU_DPCD_LANE_COUNT_SET, 0x1,
 								&RegVal);
@@ -2009,7 +2049,7 @@ u32 XDpPsu_SetLaneCount(XDpPsu *InstancePtr, u8 LaneCount)
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
-
+#endif
 	return XST_SUCCESS;
 }
 
@@ -2072,13 +2112,14 @@ u32 XDpPsu_SetLinkRate(XDpPsu *InstancePtr, u8 LinkRate)
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_LINK_BW_SET,
 					InstancePtr->LinkConfig.LinkRate);
 
+#ifndef NO_PHY
 	/* Write new link rate to the RX device. */
 	Status = XDpPsu_AuxWrite(InstancePtr, XDPPSU_DPCD_LINK_BW_SET, 0x1,
 					&InstancePtr->LinkConfig.LinkRate);
 	if (Status != XST_SUCCESS) {
 		return Status;
 	}
-
+#endif
 	return Status;
 }
 
@@ -2113,6 +2154,7 @@ u32 XDpPsu_SetScrambler(XDpPsu *InstancePtr, u8 Enable)
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_SCRAMBLING_DISABLE,
 							Enable ? 0x0 : 0x1);
 
+#ifndef NO_PHY
 	/* Preserve the current RX device settings. */
 	Status = XDpPsu_AuxRead(InstancePtr, XDPPSU_DPCD_TP_SET, 0x1, &RegVal);
 	if (Status != XST_SUCCESS) {
@@ -2130,7 +2172,7 @@ u32 XDpPsu_SetScrambler(XDpPsu *InstancePtr, u8 Enable)
 	if (Status != XST_SUCCESS) {
 		return XST_FAILURE;
 	}
-
+#endif
 	return XST_SUCCESS;
 }
 
@@ -2195,8 +2237,9 @@ void XDpPsu_ResetPhy(XDpPsu *InstancePtr, u32 Reset)
 	/* Remove the reset. */
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_PHY_CONFIG, PhyVal);
 
+#ifndef NO_PHY
 	/* Wait for the PHY to be ready. */
 	XDpPsu_WaitPhyReady(InstancePtr);
-
+#endif
 	XDpPsu_WriteReg(InstancePtr->Config.BaseAddr, XDPPSU_ENABLE, 0x1);
 }
