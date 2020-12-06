@@ -1,6 +1,6 @@
 # ZynqMP standalone BSP customization for DP without PHY.
 
-This project is a cusomisation of **cortexa53_0** platform libraries to adapt DPPSU and AVBUF to work wihtout PHY connected to DP source controller.
+This project is a cusomisation of **cortexa53_0** platform libraries to adapt DPPSU and AVBUF to work wihtout PHY connected to DP source controller. It is based on v2019.2.01 VITIS SDK.
 
 ## How to use this project
 
