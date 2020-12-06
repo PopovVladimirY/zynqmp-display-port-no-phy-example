@@ -10,6 +10,6 @@ This code shall replace content of the **(platform_top_cofiguration)/cortexa53_0
 
 It shall be used in combination with user application adapted for the case. For instance, DP standalone example application implementing DP live video to PL to LCD scenario:
 
-    git@......./displayport-live-video-to-pl.git
+    https://github.com/PopovVladimirY/zynqmp-live-video-to-pl-no-phy-example.git
 
 See the example application readme for details on project setup and use.
